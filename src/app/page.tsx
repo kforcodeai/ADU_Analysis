@@ -294,7 +294,7 @@ const HousingDashboard = () => {
           totalValue: val.totalValue,
         };
       })
-      .sort((a, b) => parseInt(a) - parseInt(b));
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
   };
 
   const processAverageJobValueByStructureTypeAndYear = (
