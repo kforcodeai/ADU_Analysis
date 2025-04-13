@@ -1,5 +1,7 @@
 "use client";
+
 import { useState, useEffect } from "react";
+import Papa from "papaparse";
 import {
   AreaChart,
   Area,
@@ -12,35 +14,35 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import Papa from "papaparse";
+
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
+  CardContent,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  BarChart3,
-  LineChart as LineChartIcon,
   AlertCircle,
+  BarChart3,
+  DollarSign,
+  Download,
+  HelpCircle,
   Home,
+  Info,
+  LineChart as LineChartIcon,
+  Map,
+  Percent,
   PieChart as PieChartIcon,
   TrendingUp,
-  Map,
-  Download,
-  Info,
-  HelpCircle,
-  DollarSign,
-  Percent,
   Building,
   Waves,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
 interface HousingData {
@@ -113,7 +115,7 @@ interface ValueAggregate {
   count: number;
 }
 
-// Example color theme
+// Consistent color theme used in our charts
 const THEME_COLORS = {
   adu: "#2563eb",             // Primary Blue
   nonAdu: "#10b981",          // Green
@@ -153,7 +155,7 @@ const generateSampleData = (): HousingData[] => {
   }));
 };
 
-const HousingDashboard = () => {
+export default function AduPermitDashboard() {
   const [data, setData] = useState<HousingData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,10 +174,12 @@ const HousingDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Attempt to load the CSV from "public/housing_data.csv"
         const response = await fetch("/housing_data.csv");
 
         if (!response.ok) {
-          console.warn("Using sample data as CSV couldn't be loaded");
+          // If CSV not found, warn and use sample data
+          console.warn("CSV not found. Using sample data instead.");
           const sampleData = generateSampleData();
           setData(sampleData);
           processData(sampleData);
@@ -196,6 +200,7 @@ const HousingDashboard = () => {
         setData(parsedData.data);
         processData(parsedData.data);
       } catch (err) {
+        // If any error, revert to sample data and set error message
         console.error("Error loading data:", err);
         const sampleData = generateSampleData();
         setData(sampleData);
@@ -210,7 +215,7 @@ const HousingDashboard = () => {
   }, []);
 
   // -----------------------
-  // PROCESSING FUNCTIONS
+  // DATA PROCESSING
   // -----------------------
 
   const processUnitsByYear = (data: HousingData[]): UnitsByYearData[] => {
@@ -412,23 +417,23 @@ const HousingDashboard = () => {
   };
 
   // -----------------------
-  // TOOLTIP & UI HELPERS
+  // UI & MISC
   // -----------------------
 
-  // Example: more minimal tooltip with subtle styling
+  // Custom minimal tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow text-left">
-        <p className="font-semibold mb-1 text-gray-800">{label}</p>
+      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow text-sm text-gray-800">
+        <p className="font-semibold mb-1">{label}</p>
         {payload.map((entry: any) => (
           <div key={entry.name} className="flex items-center gap-2 py-1">
             <div
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: entry.color }}
             />
-            <span className="text-gray-600">{entry.name}:</span>
-            <span className="font-medium text-gray-900">
+            <span>{entry.name}:</span>
+            <span className="font-medium">
               {typeof entry.value === "number"
                 ? entry.value.toLocaleString()
                 : entry.value}
@@ -445,16 +450,16 @@ const HousingDashboard = () => {
       description: "Your CSV file is being prepared.",
     });
 
-    // In real application, handle CSV exporting logic here
+    // In a real application, you’d generate and download the CSV here
     setTimeout(() => {
       toast({
         title: "Download Complete",
         description: "Your data has been downloaded successfully.",
       });
-    }, 1500);
+    }, 1200);
   };
 
-  // Simple stats computations (for top cards)
+  // Simple stats (for top cards)
   const getOverviewData = () => {
     if (!chartData.aduPercentageByYear.length) return { trend: 0, latest: 0 };
     const arr = chartData.aduPercentageByYear;
@@ -491,10 +496,7 @@ const HousingDashboard = () => {
       <Skeleton className="h-14 w-full mb-8" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[1, 2, 3].map((i) => (
-          <Card
-            key={i}
-            className="overflow-hidden rounded-lg border border-gray-200 shadow-sm"
-          >
+          <Card key={i} className="overflow-hidden rounded-lg shadow-sm">
             <CardHeader className="pb-2">
               <Skeleton className="h-5 w-1/2" />
             </CardHeader>
@@ -507,10 +509,7 @@ const HousingDashboard = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {[1, 2].map((i) => (
-          <Card
-            key={i}
-            className="rounded-lg border border-gray-200 shadow-sm"
-          >
+          <Card key={i} className="rounded-lg shadow-sm">
             <CardHeader>
               <Skeleton className="h-8 w-3/4" />
             </CardHeader>
@@ -523,7 +522,7 @@ const HousingDashboard = () => {
     </div>
   );
 
-  // Error Message
+  // Error message if CSV loading fails
   const renderError = () => (
     <div className="p-6 max-w-7xl mx-auto">
       <Alert variant="destructive" className="mb-8">
@@ -532,7 +531,7 @@ const HousingDashboard = () => {
         <AlertDescription>{error}</AlertDescription>
       </Alert>
 
-      <Card className="rounded-lg border border-gray-200 shadow-sm">
+      <Card className="rounded-lg border shadow-sm">
         <CardHeader>
           <CardTitle>Sample Data in Use</CardTitle>
           <CardDescription>
@@ -549,17 +548,16 @@ const HousingDashboard = () => {
     </div>
   );
 
-  if (loading) {
-    return renderSkeleton();
-  }
+  if (loading) return renderSkeleton();
 
   const overviewData = getOverviewData();
   const valueData = getAverageValueData();
 
   return (
     <div className="p-6 max-w-7xl mx-auto min-h-screen bg-gradient-to-b from-gray-50 via-white to-white space-y-8">
+      {/* Notice if using sample data */}
       {error && (
-        <Alert variant="default" className="mb-8 border-amber-500 bg-amber-50">
+        <Alert variant="default" className="mb-4 border-amber-500 bg-amber-50">
           <AlertCircle className="h-4 w-4 text-amber-500" />
           <AlertTitle className="text-amber-700">Data Source Notice</AlertTitle>
           <AlertDescription className="text-amber-600">{error}</AlertDescription>
@@ -567,7 +565,7 @@ const HousingDashboard = () => {
       )}
 
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
@@ -575,12 +573,11 @@ const HousingDashboard = () => {
               ADU Permit Explorer
             </h1>
           </div>
-          <p className="text-gray-600 mt-2 max-w-lg text-sm">
-            Interactive look at Accessory Dwelling Unit (ADU) permit trends and
-            valuations across California counties.
+          <p className="mt-2 max-w-lg text-sm text-gray-600">
+            An interactive look at Accessory Dwelling Unit (ADU) permit trends
+            and valuations across California counties.
           </p>
         </div>
-
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleDownloadData}>
             <Download className="h-4 w-4 mr-2" />
@@ -591,13 +588,13 @@ const HousingDashboard = () => {
             Dashboard Guide
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* TOP CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="shadow-sm border hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+            <CardTitle className="flex items-center text-sm text-gray-600">
               <Percent className="h-4 w-4 mr-2 text-blue-600" />
               ADUs as % of All Permits
             </CardTitle>
@@ -626,7 +623,7 @@ const HousingDashboard = () => {
                       {overviewData.trend}%
                     </Badge>
                   )}
-                  <span className="text-gray-500 text-xs ml-2">
+                  <span className="text-xs text-gray-500 ml-2">
                     vs. previous year
                   </span>
                 </div>
@@ -635,9 +632,9 @@ const HousingDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+        <Card className="shadow-sm border hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+            <CardTitle className="flex items-center text-sm text-gray-600">
               <DollarSign className="h-4 w-4 mr-2 text-indigo-600" />
               Avg ADU Permit Value
             </CardTitle>
@@ -666,7 +663,7 @@ const HousingDashboard = () => {
                       ${valueData.trend}k
                     </Badge>
                   )}
-                  <span className="text-gray-500 text-xs ml-2">
+                  <span className="text-xs text-gray-500 ml-2">
                     vs. previous year
                   </span>
                 </div>
@@ -675,9 +672,9 @@ const HousingDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+        <Card className="shadow-sm border hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+            <CardTitle className="flex items-center text-sm text-gray-600">
               <Building className="h-4 w-4 mr-2 text-purple-600" />
               Leading ADU County
             </CardTitle>
@@ -694,36 +691,27 @@ const HousingDashboard = () => {
                     className="bg-blue-50 text-blue-700 border-blue-200"
                   >
                     <Map className="h-3 w-3 mr-1" />
-                    Highest Permit Count
+                    Most Permits
                   </Badge>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
-      {/* TABS */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full sm:w-[500px]">
-          <TabsTrigger
-            value="overview"
-            className="flex gap-2 rounded-none data-[state=active]:border-gray-300 data-[state=active]:bg-white"
-          >
+      {/* MAIN TABS */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-3 w-full sm:w-[500px] mb-6">
+          <TabsTrigger value="overview" className="flex gap-2 rounded-none">
             <PieChartIcon className="h-4 w-4" />
             Key Trends
           </TabsTrigger>
-          <TabsTrigger
-            value="units"
-            className="flex gap-2 rounded-none data-[state=active]:border-gray-300 data-[state=active]:bg-white"
-          >
+          <TabsTrigger value="units" className="flex gap-2 rounded-none">
             <BarChart3 className="h-4 w-4" />
             Permit Volume
           </TabsTrigger>
-          <TabsTrigger
-            value="values"
-            className="flex gap-2 rounded-none data-[state=active]:border-gray-300 data-[state=active]:bg-white"
-          >
+          <TabsTrigger value="values" className="flex gap-2 rounded-none">
             <LineChartIcon className="h-4 w-4" />
             Permit Value
           </TabsTrigger>
@@ -731,16 +719,15 @@ const HousingDashboard = () => {
 
         {/* OVERVIEW TAB */}
         <TabsContent value="overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* ADU Share of Total Permits */}
-            <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="shadow-sm border hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-gray-700">
                   <PieChartIcon className="h-5 w-5 text-blue-600" />
-                  ADU Share of Total Permits (Yearly)
+                  ADU Share of Total Permits
                 </CardTitle>
                 <CardDescription className="text-sm text-gray-500">
-                  Percentage of ADUs among all structures each year
+                  % of ADUs among all structures, by year
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -777,25 +764,24 @@ const HousingDashboard = () => {
                     <XAxis
                       dataKey="year"
                       stroke={THEME_COLORS.muted}
-                      tickLine={false}
                       axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis
                       stroke={THEME_COLORS.muted}
-                      tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `${value}%`}
+                      tickLine={false}
+                      tickFormatter={(val) => `${val}%`}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{opacity: 0.1}} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ opacity: 0.1 }} />
                     <Area
                       dataKey="aduPercentage"
                       name="ADU %"
                       stroke={THEME_COLORS.adu}
-                      strokeWidth={2}
                       fill="url(#aduPercentageGradient)"
-                      isAnimationActive={true}
+                      isAnimationActive
                       animationBegin={100}
-                      animationDuration={1000}
+                      animationDuration={900}
                       activeDot={{
                         r: 4,
                         stroke: THEME_COLORS.background,
@@ -807,290 +793,20 @@ const HousingDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* ADU Job Value % Over Time */}
-            <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="shadow-sm border hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-gray-700">
                   <Waves className="h-5 w-5 text-blue-600" />
-                  Share of Permit Value (ADU vs. All)
+                  ADU Share of Permit Value
                 </CardTitle>
                 <CardDescription className="text-sm text-gray-500">
-                  Proportion of total permit value attributed to ADUs each year
+                  % of total permit value attributed to ADUs
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart
                     data={chartData.aduJobValuePercentageByYear}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="aduJobValueGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.7}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.1}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      stroke={THEME_COLORS.muted}
-                      strokeDasharray="3 3"
-                      strokeOpacity={0.3}
-                    />
-                    <XAxis
-                      dataKey="year"
-                      stroke={THEME_COLORS.muted}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke={THEME_COLORS.muted}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `${value}%`}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{opacity: 0.1}} />
-                    <Area
-                      dataKey="aduJobValuePercentage"
-                      name="ADU Value %"
-                      stroke={THEME_COLORS.adu}
-                      strokeWidth={2}
-                      fill="url(#aduJobValueGradient)"
-                      isAnimationActive={true}
-                      animationBegin={100}
-                      animationDuration={1000}
-                      activeDot={{
-                        r: 4,
-                        stroke: THEME_COLORS.background,
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* PERMIT VOLUME TAB */}
-        <TabsContent value="units">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Stacked Area for ADU, Non-ADU, Potential */}
-            <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-gray-700">
-                  <Waves className="h-5 w-5 text-blue-600" />
-                  Permit Volume by Structure Type
-                </CardTitle>
-                <CardDescription className="text-sm text-gray-500">
-                  Stacked area of ADU, Non-ADU, and Potential ADU conversions by
-                  year
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart
-                    data={chartData.unitsByYear}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="aduGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.7}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.1}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="nonAduGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.nonAdu}
-                          stopOpacity={0.7}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={THEME_COLORS.nonAdu}
-                          stopOpacity={0.1}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="potentialAduGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.potentialAdu}
-                          stopOpacity={0.7}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={THEME_COLORS.potentialAdu}
-                          stopOpacity={0.1}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      stroke={THEME_COLORS.muted}
-                      strokeDasharray="3 3"
-                      strokeOpacity={0.3}
-                    />
-                    <XAxis
-                      dataKey="year"
-                      stroke={THEME_COLORS.muted}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke={THEME_COLORS.muted}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{opacity: 0.1}} />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="POTENTIAL_ADU_CONVERSION"
-                      name="Potential ADU"
-                      stackId="1"
-                      stroke={THEME_COLORS.potentialAdu}
-                      fill="url(#potentialAduGradient)"
-                      isAnimationActive={true}
-                      animationBegin={100}
-                      animationDuration={1000}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="NON_ADU"
-                      name="Non-ADU"
-                      stackId="1"
-                      stroke={THEME_COLORS.nonAdu}
-                      fill="url(#nonAduGradient)"
-                      isAnimationActive={true}
-                      animationBegin={100}
-                      animationDuration={1000}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="ADU"
-                      name="ADU"
-                      stackId="1"
-                      stroke={THEME_COLORS.adu}
-                      fill="url(#aduGradient)"
-                      isAnimationActive={true}
-                      animationBegin={100}
-                      animationDuration={1000}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Top Counties by ADU Volume */}
-            <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-gray-700">
-                  <Map className="h-5 w-5 text-blue-600" />
-                  Top Counties by ADU Permits
-                </CardTitle>
-                <CardDescription className="text-sm text-gray-500">
-                  Leading 8 counties (by total ADU permit count)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={chartData.unitsByJurisdiction}
-                    layout="vertical"
-                    margin={{ top: 20, right: 20, left: 80, bottom: 20 }}
-                  >
-                    <CartesianGrid
-                      stroke={THEME_COLORS.muted}
-                      strokeDasharray="3 3"
-                      strokeOpacity={0.3}
-                    />
-                    <XAxis
-                      type="number"
-                      stroke={THEME_COLORS.muted}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="county"
-                      width={100}
-                      stroke={THEME_COLORS.muted}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{opacity: 0.1}} />
-                    <Legend />
-                    <Bar
-                      dataKey="ADU"
-                      name="ADU Permits"
-                      fill={THEME_COLORS.adu}
-                      isAnimationActive={true}
-                      animationBegin={100}
-                      animationDuration={800}
-                      radius={[4, 4, 4, 4]}
-                      barSize={18}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* PERMIT VALUE TAB */}
-        <TabsContent value="values">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Avg Permit Value by Structure Type */}
-            <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-gray-700">
-                  <Waves className="h-5 w-5 text-blue-600" />
-                  Average Permit Value by Type
-                </CardTitle>
-                <CardDescription className="text-sm text-gray-500">
-                  Comparison of ADU, Non-ADU, and Potential ADU values
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart
-                    data={chartData.avgJobValueByStructureTypeAndYear}
                     margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
                   >
                     <defs>
@@ -1112,26 +828,88 @@ const HousingDashboard = () => {
                           stopOpacity={0.1}
                         />
                       </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      stroke={THEME_COLORS.muted}
+                      strokeDasharray="3 3"
+                      strokeOpacity={0.3}
+                    />
+                    <XAxis
+                      dataKey="year"
+                      stroke={THEME_COLORS.muted}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      stroke={THEME_COLORS.muted}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) => `${val}%`}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ opacity: 0.1 }} />
+                    <Area
+                      dataKey="aduJobValuePercentage"
+                      name="ADU Value %"
+                      stroke={THEME_COLORS.adu}
+                      fill="url(#aduValueGradient)"
+                      isAnimationActive
+                      animationBegin={100}
+                      animationDuration={900}
+                      activeDot={{
+                        r: 4,
+                        stroke: THEME_COLORS.background,
+                        strokeWidth: 2,
+                      }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </section>
+        </TabsContent>
+
+        {/* PERMIT VOLUME TAB */}
+        <TabsContent value="units">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="shadow-sm border hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-700">
+                  <Waves className="h-5 w-5 text-blue-600" />
+                  Permit Volume by Structure Type
+                </CardTitle>
+                <CardDescription className="text-sm text-gray-500">
+                  Stacked area of ADU, Non-ADU, Potential ADU by year
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart
+                    data={chartData.unitsByYear}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+                  >
+                    <defs>
                       <linearGradient
-                        id="nonAduValueGradient"
+                        id="grad-adu"
                         x1="0"
                         y1="0"
                         x2="0"
                         y2="1"
                       >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.nonAdu}
-                          stopOpacity={0.7}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={THEME_COLORS.nonAdu}
-                          stopOpacity={0.1}
-                        />
+                        <stop offset="5%" stopColor={THEME_COLORS.adu} stopOpacity={0.7} />
+                        <stop offset="95%" stopColor={THEME_COLORS.adu} stopOpacity={0.1} />
                       </linearGradient>
                       <linearGradient
-                        id="potAduValueGradient"
+                        id="grad-nonadu"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="5%" stopColor={THEME_COLORS.nonAdu} stopOpacity={0.7} />
+                        <stop offset="95%" stopColor={THEME_COLORS.nonAdu} stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient
+                        id="grad-potadu"
                         x1="0"
                         y1="0"
                         x2="0"
@@ -1157,67 +935,246 @@ const HousingDashboard = () => {
                     <XAxis
                       dataKey="year"
                       stroke={THEME_COLORS.muted}
-                      tickLine={false}
                       axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis
                       stroke={THEME_COLORS.muted}
-                      tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) =>
-                        `$${(value / 1000).toLocaleString()}k`
-                      }
-                      width={75}
+                      tickLine={false}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{opacity: 0.1}} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ opacity: 0.1 }} />
                     <Legend />
                     <Area
                       type="monotone"
                       dataKey="POTENTIAL_ADU_CONVERSION"
                       name="Potential ADU"
+                      stackId="1"
                       stroke={THEME_COLORS.potentialAdu}
-                      strokeWidth={2}
-                      fill="url(#potAduValueGradient)"
-                      isAnimationActive={true}
+                      fill="url(#grad-potadu)"
+                      isAnimationActive
                       animationBegin={100}
-                      animationDuration={1000}
+                      animationDuration={900}
                     />
                     <Area
                       type="monotone"
                       dataKey="NON_ADU"
                       name="Non-ADU"
+                      stackId="1"
                       stroke={THEME_COLORS.nonAdu}
-                      strokeWidth={2}
-                      fill="url(#nonAduValueGradient)"
-                      isAnimationActive={true}
+                      fill="url(#grad-nonadu)"
+                      isAnimationActive
                       animationBegin={100}
-                      animationDuration={1000}
+                      animationDuration={900}
                     />
                     <Area
                       type="monotone"
                       dataKey="ADU"
                       name="ADU"
+                      stackId="1"
                       stroke={THEME_COLORS.adu}
-                      strokeWidth={2}
-                      fill="url(#aduValueGradient)"
-                      isAnimationActive={true}
+                      fill="url(#grad-adu)"
+                      isAnimationActive
                       animationBegin={100}
-                      animationDuration={1000}
+                      animationDuration={900}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Average ADU Permit Value by County */}
-            <Card className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="shadow-sm border hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-700">
+                  <Map className="h-5 w-5 text-blue-600" />
+                  Top Counties by ADU Permits
+                </CardTitle>
+                <CardDescription className="text-sm text-gray-500">
+                  Leading 8 counties (by total ADU count)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={chartData.unitsByJurisdiction}
+                    layout="vertical"
+                    margin={{ top: 20, right: 20, left: 80, bottom: 20 }}
+                  >
+                    <CartesianGrid
+                      stroke={THEME_COLORS.muted}
+                      strokeDasharray="3 3"
+                      strokeOpacity={0.3}
+                    />
+                    <XAxis
+                      type="number"
+                      stroke={THEME_COLORS.muted}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      dataKey="county"
+                      type="category"
+                      width={100}
+                      stroke={THEME_COLORS.muted}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ opacity: 0.1 }} />
+                    <Legend />
+                    <Bar
+                      dataKey="ADU"
+                      name="ADU Permits"
+                      fill={THEME_COLORS.adu}
+                      radius={[4, 4, 4, 4]}
+                      isAnimationActive
+                      animationBegin={100}
+                      animationDuration={900}
+                      barSize={18}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </section>
+        </TabsContent>
+
+        {/* PERMIT VALUE TAB */}
+        <TabsContent value="values">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="shadow-sm border hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-700">
+                  <Waves className="h-5 w-5 text-blue-600" />
+                  Avg Permit Value by Type
+                </CardTitle>
+                <CardDescription className="text-sm text-gray-500">
+                  ADU, Non-ADU, and Potential ADU comparison
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart
+                    data={chartData.avgJobValueByStructureTypeAndYear}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="aduValueGrad"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={THEME_COLORS.adu}
+                          stopOpacity={0.7}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={THEME_COLORS.adu}
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="nonAduValueGrad"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={THEME_COLORS.nonAdu}
+                          stopOpacity={0.7}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={THEME_COLORS.nonAdu}
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="potAduValueGrad"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={THEME_COLORS.potentialAdu}
+                          stopOpacity={0.7}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={THEME_COLORS.potentialAdu}
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      stroke={THEME_COLORS.muted}
+                      strokeDasharray="3 3"
+                      strokeOpacity={0.3}
+                    />
+                    <XAxis
+                      dataKey="year"
+                      stroke={THEME_COLORS.muted}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      stroke={THEME_COLORS.muted}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) => `$${(val / 1000).toLocaleString()}k`}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ opacity: 0.1 }} />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="POTENTIAL_ADU_CONVERSION"
+                      name="Potential ADU"
+                      stroke={THEME_COLORS.potentialAdu}
+                      fill="url(#potAduValueGrad)"
+                      isAnimationActive
+                      animationBegin={100}
+                      animationDuration={900}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="NON_ADU"
+                      name="Non-ADU"
+                      stroke={THEME_COLORS.nonAdu}
+                      fill="url(#nonAduValueGrad)"
+                      isAnimationActive
+                      animationBegin={100}
+                      animationDuration={900}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="ADU"
+                      name="ADU"
+                      stroke={THEME_COLORS.adu}
+                      fill="url(#aduValueGrad)"
+                      isAnimationActive
+                      animationBegin={100}
+                      animationDuration={900}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-gray-700">
                   <Building className="h-5 w-5 text-blue-600" />
                   Top Counties by ADU Value
                 </CardTitle>
                 <CardDescription className="text-sm text-gray-500">
-                  Leading 8 counties (average value in thousands)
+                  Leading 8 counties (avg value in thousands)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1234,50 +1191,48 @@ const HousingDashboard = () => {
                     />
                     <XAxis
                       type="number"
-                      tickFormatter={(value) => `$${value}k`}
                       stroke={THEME_COLORS.muted}
-                      tickLine={false}
                       axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) => `$${val}k`}
                     />
                     <YAxis
-                      type="category"
                       dataKey="county"
+                      type="category"
                       width={100}
                       stroke={THEME_COLORS.muted}
-                      tickLine={false}
                       axisLine={false}
+                      tickLine={false}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{opacity: 0.1}} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ opacity: 0.1 }} />
                     <Legend />
                     <Bar
                       dataKey="avgValue"
                       name="Avg ADU Value (k)"
                       fill={THEME_COLORS.adu}
                       radius={[4, 4, 4, 4]}
-                      isAnimationActive={true}
+                      isAnimationActive
                       animationBegin={100}
-                      animationDuration={800}
+                      animationDuration={900}
                       barSize={18}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-          </div>
+          </section>
         </TabsContent>
       </Tabs>
 
       {/* FOOTER */}
-      <div className="mt-8 text-center text-sm text-gray-400 border-t border-gray-200 pt-4">
+      <footer className="mt-8 text-center text-sm text-gray-400 border-t border-gray-200 pt-4">
         <p>Data last updated: {new Date().toLocaleDateString()}</p>
         <p className="mt-1 inline-flex items-center gap-1">
           <Info className="h-3 w-3" />
-          This dashboard highlights ADU construction and valuation trends across
-          California.
+          This dashboard highlights ADU construction and valuation trends
+          across California.
         </p>
-      </div>
+      </footer>
     </div>
   );
-};
-
-export default HousingDashboard;
+}
