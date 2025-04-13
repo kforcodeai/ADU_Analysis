@@ -33,7 +33,6 @@ import {
   Download,
   Info,
   HelpCircle,
-  Calendar,
   DollarSign,
   Percent,
   Building,
@@ -415,8 +414,8 @@ const HousingDashboard = () => {
     if (!active || !payload?.length) return null;
 
     return (
-      <div className="bg-white p-4 border rounded-lg shadow-lg text-left">
-        <p className="font-bold mb-2 text-gray-800">{label}</p>
+      <div className="bg-white p-3 border rounded-lg shadow-lg text-left">
+        <p className="font-semibold mb-1 text-gray-800">{label}</p>
         {payload.map((entry: any) => (
           <div key={entry.name} className="flex items-center gap-2 py-1">
             <div
@@ -424,7 +423,7 @@ const HousingDashboard = () => {
               style={{ backgroundColor: entry.color }}
             />
             <span className="text-gray-600">{entry.name}:</span>
-            <span className="font-semibold text-gray-900">
+            <span className="font-medium text-gray-900">
               {typeof entry.value === "number"
                 ? entry.value.toLocaleString()
                 : entry.value}
@@ -738,7 +737,10 @@ const HousingDashboard = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData.aduPercentageByYear}>
+                  <AreaChart
+                    data={chartData.aduPercentageByYear}
+                    margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                  >
                     <defs>
                       <linearGradient
                         id="aduPercentageGradient"
@@ -778,6 +780,7 @@ const HousingDashboard = () => {
                       dataKey="aduPercentage"
                       name="ADU %"
                       stroke={THEME_COLORS.adu}
+                      strokeWidth={2}
                       fill="url(#aduPercentageGradient)"
                       activeDot={{
                         r: 5,
@@ -803,7 +806,10 @@ const HousingDashboard = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData.aduJobValuePercentageByYear}>
+                  <AreaChart
+                    data={chartData.aduJobValuePercentageByYear}
+                    margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                  >
                     <defs>
                       <linearGradient
                         id="aduJobValueGradient"
@@ -843,6 +849,7 @@ const HousingDashboard = () => {
                       dataKey="aduJobValuePercentage"
                       name="ADU Value %"
                       stroke={THEME_COLORS.adu}
+                      strokeWidth={2}
                       fill="url(#aduJobValueGradient)"
                       activeDot={{
                         r: 5,
@@ -874,7 +881,10 @@ const HousingDashboard = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData.unitsByYear}>
+                  <AreaChart
+                    data={chartData.unitsByYear}
+                    margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                  >
                     <defs>
                       <linearGradient
                         id="aduGradient"
@@ -982,7 +992,7 @@ const HousingDashboard = () => {
                     data={chartData.unitsByJurisdiction}
                     layout="vertical"
                     barSize={15}
-                    margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                    margin={{ top: 20, right: 20, left: 100, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" />
@@ -1018,7 +1028,10 @@ const HousingDashboard = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData.avgJobValueByStructureTypeAndYear}>
+                  <AreaChart
+                    data={chartData.avgJobValueByStructureTypeAndYear}
+                    margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                  >
                     <defs>
                       <linearGradient
                         id="aduValueGradient"
@@ -1077,35 +1090,54 @@ const HousingDashboard = () => {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="year" />
+                    {/* Format large averages in $xxxk */}
                     <YAxis
-                      tickFormatter={(value) => `$${value}`}
-                      width={60}
+                      tickFormatter={(value) =>
+                        `$${(value / 1000).toLocaleString()}k`
+                      }
+                      width={80}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
+                    {/* Remove stackId for separate lines of averages */}
                     <Area
                       type="monotone"
                       dataKey="POTENTIAL_ADU_CONVERSION"
                       name="Potential ADU"
-                      stackId="1"
                       stroke={THEME_COLORS.potentialAdu}
+                      strokeWidth={2}
                       fill="url(#potAduValueGradient)"
+                      activeDot={{
+                        r: 5,
+                        stroke: THEME_COLORS.background,
+                        strokeWidth: 2,
+                      }}
                     />
                     <Area
                       type="monotone"
                       dataKey="NON_ADU"
                       name="Non-ADU"
-                      stackId="1"
                       stroke={THEME_COLORS.nonAdu}
+                      strokeWidth={2}
                       fill="url(#nonAduValueGradient)"
+                      activeDot={{
+                        r: 5,
+                        stroke: THEME_COLORS.background,
+                        strokeWidth: 2,
+                      }}
                     />
                     <Area
                       type="monotone"
                       dataKey="ADU"
                       name="ADU"
-                      stackId="1"
                       stroke={THEME_COLORS.adu}
+                      strokeWidth={2}
                       fill="url(#aduValueGradient)"
+                      activeDot={{
+                        r: 5,
+                        stroke: THEME_COLORS.background,
+                        strokeWidth: 2,
+                      }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1129,7 +1161,7 @@ const HousingDashboard = () => {
                     data={chartData.jobValueByCounty}
                     barSize={15}
                     layout="vertical"
-                    margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                    margin={{ top: 20, right: 20, left: 100, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
