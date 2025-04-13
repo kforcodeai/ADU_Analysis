@@ -104,7 +104,7 @@ interface ValueAggregate {
   count: number;
 }
 
-// Sample data in case the CSV is not available
+// Fallback sample data if the CSV cannot be loaded
 const generateSampleData = (): HousingData[] => {
   const counties = [
     "Santa Clara",
@@ -130,7 +130,7 @@ const generateSampleData = (): HousingData[] => {
 };
 
 const THEME_COLORS = {
-  adu: "#2563eb", // Primary blue
+  adu: "#2563eb", // Blue
   nonAdu: "#10b981", // Green
   potentialAdu: "#f97316", // Orange
   primary: "#2563eb",
@@ -163,9 +163,9 @@ const HousingDashboard = () => {
       try {
         const response = await fetch("/housing_data.csv");
 
-        // If fetch fails, use sample data
+        // If the file is not accessible, use sample data
         if (!response.ok) {
-          console.warn("Using sample data as CSV couldn't be loaded");
+          console.warn("CSV file could not be loaded. Using sample data...");
           const sampleData = generateSampleData();
           setData(sampleData);
           processData(sampleData);
@@ -185,13 +185,14 @@ const HousingDashboard = () => {
 
         setData(parsedData.data);
         processData(parsedData.data);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        // Fallback to sample data in case of error
+      } catch (err) {
+        console.error("Error loading data:", err);
         const sampleData = generateSampleData();
         setData(sampleData);
         processData(sampleData);
-        setError("Error loading CSV data. Using sample data instead.");
+        setError(
+          "Unable to retrieve the CSV file. Displaying sample data instead."
+        );
       } finally {
         setLoading(false);
       }
@@ -200,53 +201,61 @@ const HousingDashboard = () => {
     fetchData();
   }, []);
 
-  const processData = (data: HousingData[]) => {
+  const processData = (housingData: HousingData[]) => {
     setChartData({
-      unitsByYear: processUnitsByYear(data),
-      unitsByJurisdiction: processUnitsByJurisdiction(data),
-      jobValueByCounty: processJobValueByCounty(data),
-      averageAduJobValueByYear: processAverageAduJobValueByYear(data),
-      aduPercentageByYear: processAduPercentageByYear(data),
+      unitsByYear: processUnitsByYear(housingData),
+      unitsByJurisdiction: processUnitsByJurisdiction(housingData),
+      jobValueByCounty: processJobValueByCounty(housingData),
+      averageAduJobValueByYear: processAverageAduJobValueByYear(housingData),
+      aduPercentageByYear: processAduPercentageByYear(housingData),
     });
   };
 
-  const processUnitsByYear = (data: HousingData[]): UnitsByYearData[] => {
-    const unitsByYear = data.reduce((acc, row) => {
+  const processUnitsByYear = (housingData: HousingData[]): UnitsByYearData[] => {
+    const unitsByYear = housingData.reduce((acc, row) => {
       const year = row.YEAR.toString();
-      if (!acc[year])
-        acc[year] = { year, ADU: 0, NON_ADU: 0, POTENTIAL_ADU_CONVERSION: 0 };
+      if (!acc[year]) {
+        acc[year] = {
+          year,
+          ADU: 0,
+          NON_ADU: 0,
+          POTENTIAL_ADU_CONVERSION: 0,
+        };
+      }
       acc[year][row.Classification]++;
       return acc;
     }, {} as Record<string, UnitsByYearData>);
 
-    return Object.entries(unitsByYear)
-      .map(([year, counts]) => ({ ...counts }))
-      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
-  };
-
-  const processAduPercentageByYear = (
-    data: HousingData[]
-  ): AduPercentageByYearData[] => {
-    const yearlyData = processUnitsByYear(data);
-    return yearlyData.map(
-      ({ year, ADU, NON_ADU, POTENTIAL_ADU_CONVERSION }) => {
-        const total = ADU + NON_ADU + POTENTIAL_ADU_CONVERSION;
-        return {
-          year,
-          aduCount: ADU,
-          totalCount: total,
-          aduPercentage: total > 0 ? Math.round((ADU / total) * 100) : 0,
-        };
-      }
+    return Object.values(unitsByYear).sort(
+      (a, b) => parseInt(a.year) - parseInt(b.year)
     );
   };
 
+  const processAduPercentageByYear = (
+    housingData: HousingData[]
+  ): AduPercentageByYearData[] => {
+    const yearlyData = processUnitsByYear(housingData);
+    return yearlyData.map(({ year, ADU, NON_ADU, POTENTIAL_ADU_CONVERSION }) => {
+      const total = ADU + NON_ADU + POTENTIAL_ADU_CONVERSION;
+      return {
+        year,
+        aduCount: ADU,
+        totalCount: total,
+        aduPercentage: total > 0 ? Math.round((ADU / total) * 100) : 0,
+      };
+    });
+  };
+
   const processUnitsByJurisdiction = (
-    data: HousingData[]
+    housingData: HousingData[]
   ): UnitsByJurisdictionData[] => {
-    const jurisdictionData = data.reduce((acc, row) => {
-      if (!acc[row.COUNTY]) acc[row.COUNTY] = { ADU: 0, total: 0 };
-      acc[row.COUNTY].ADU += row.Classification === "ADU" ? 1 : 0;
+    const jurisdictionData = housingData.reduce((acc, row) => {
+      if (!acc[row.COUNTY]) {
+        acc[row.COUNTY] = { ADU: 0, total: 0 };
+      }
+      if (row.Classification === "ADU") {
+        acc[row.COUNTY].ADU++;
+      }
       acc[row.COUNTY].total++;
       return acc;
     }, {} as Record<string, { ADU: number; total: number }>);
@@ -254,15 +263,17 @@ const HousingDashboard = () => {
     return Object.entries(jurisdictionData)
       .map(([county, { ADU, total }]) => ({ county, ADU, total }))
       .sort((a, b) => b.ADU - a.ADU)
-      .slice(0, 8); // Limiting to top 8 instead of 10
+      .slice(0, 8);
   };
 
   const processJobValueByCounty = (
-    data: HousingData[]
+    housingData: HousingData[]
   ): JobValueByCountyData[] => {
-    const countyData = data.reduce((acc, row) => {
+    const countyData = housingData.reduce((acc, row) => {
       if (row.Classification === "ADU" && row.JOB_VALUE) {
-        if (!acc[row.COUNTY]) acc[row.COUNTY] = { sum: 0, count: 0 };
+        if (!acc[row.COUNTY]) {
+          acc[row.COUNTY] = { sum: 0, count: 0 };
+        }
         acc[row.COUNTY].sum += row.JOB_VALUE;
         acc[row.COUNTY].count++;
       }
@@ -276,16 +287,18 @@ const HousingDashboard = () => {
         count,
       }))
       .sort((a, b) => b.avgValue - a.avgValue)
-      .slice(0, 8); // Limiting to top 8 instead of 10
+      .slice(0, 8);
   };
 
   const processAverageAduJobValueByYear = (
-    data: HousingData[]
+    housingData: HousingData[]
   ): AverageAduJobValueByYearData[] => {
-    const yearlyData = data.reduce((acc, row) => {
+    const yearlyData = housingData.reduce((acc, row) => {
       if (row.Classification === "ADU" && row.JOB_VALUE) {
         const year = row.YEAR.toString();
-        if (!acc[year]) acc[year] = { sum: 0, count: 0 };
+        if (!acc[year]) {
+          acc[year] = { sum: 0, count: 0 };
+        }
         acc[year].sum += row.JOB_VALUE;
         acc[year].count++;
       }
@@ -303,18 +316,17 @@ const HousingDashboard = () => {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
-
     return (
-      <div className="bg-white p-4 border rounded-lg shadow-lg text-left">
-        <p className="font-bold mb-2 text-gray-800">{label}</p>
+      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow text-left">
+        <p className="font-semibold mb-2 text-gray-800">{label}</p>
         {payload.map((entry: any) => (
           <div key={entry.name} className="flex items-center gap-2 py-1">
             <div
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: entry.color }}
             />
-            <span className="text-gray-600">{entry.name}:</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-gray-700">{entry.name}:</span>
+            <span className="font-medium text-gray-900">
               {typeof entry.value === "number"
                 ? entry.value.toLocaleString()
                 : entry.value}
@@ -327,22 +339,22 @@ const HousingDashboard = () => {
 
   const handleDownloadData = () => {
     toast({
-      title: "Download Started",
-      description: "Your data is being prepared for download",
+      title: "Download Initiated",
+      description: "Your data file is being prepared for download.",
     });
 
-    // In a real app, this would trigger an actual download
+    // In a production environment, this function would initiate a real download.
     setTimeout(() => {
       toast({
         title: "Download Complete",
-        description: "The data has been downloaded successfully",
+        description: "Data file was successfully downloaded.",
       });
     }, 1500);
   };
 
+  // Overview metrics
   const getOverviewData = () => {
     if (!chartData.aduPercentageByYear.length) return { trend: 0, latest: 0 };
-
     const latestYear =
       chartData.aduPercentageByYear[chartData.aduPercentageByYear.length - 1];
     const previousYear =
@@ -353,7 +365,6 @@ const HousingDashboard = () => {
         : { aduPercentage: 0 };
 
     const trend = latestYear.aduPercentage - previousYear.aduPercentage;
-
     return {
       trend,
       latest: latestYear.aduPercentage,
@@ -363,7 +374,6 @@ const HousingDashboard = () => {
   const getAverageValueData = () => {
     if (!chartData.averageAduJobValueByYear.length)
       return { trend: 0, latest: 0 };
-
     const latestYear =
       chartData.averageAduJobValueByYear[
         chartData.averageAduJobValueByYear.length - 1
@@ -374,9 +384,7 @@ const HousingDashboard = () => {
             chartData.averageAduJobValueByYear.length - 2
           ]
         : { avgAduValue: 0 };
-
     const trend = latestYear.avgAduValue - previousYear.avgAduValue;
-
     return {
       trend,
       latest: latestYear.avgAduValue,
@@ -388,6 +396,7 @@ const HousingDashboard = () => {
     return chartData.unitsByJurisdiction[0].county;
   };
 
+  // Loading state: skeleton placeholders
   const renderSkeleton = () => (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -426,6 +435,7 @@ const HousingDashboard = () => {
     </div>
   );
 
+  // Error state
   const renderError = () => (
     <div className="p-6 max-w-7xl mx-auto">
       <Alert variant="destructive" className="mb-8">
@@ -433,19 +443,17 @@ const HousingDashboard = () => {
         <AlertTitle>Error Loading Data</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
       </Alert>
-
       <Card>
         <CardHeader>
-          <CardTitle>Using Sample Data</CardTitle>
+          <CardTitle>Sample Data in Use</CardTitle>
           <CardDescription>
-            The dashboard is currently displaying sample data for demonstration
-            purposes.
+            The dashboard is currently displaying sample data for demonstration.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p>
-            We were unable to load the actual housing data CSV file. Please
-            check that the file exists and is correctly formatted.
+            We were unable to load the housing data CSV file. Please ensure the
+            file is accessible and properly formatted.
           </p>
         </CardContent>
       </Card>
@@ -464,23 +472,24 @@ const HousingDashboard = () => {
       {error && (
         <Alert variant="default" className="mb-8 border-amber-500 bg-amber-50">
           <AlertCircle className="h-4 w-4 text-amber-500" />
-          <AlertTitle className="text-amber-700">Notice</AlertTitle>
+          <AlertTitle className="text-amber-700">Notification</AlertTitle>
           <AlertDescription className="text-amber-600">
             {error}
           </AlertDescription>
         </Alert>
       )}
 
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <h1 className="text-3xl font-bold text-gray-900">
-              ADU Insights Explorer
+              ADU Project Insights Dashboard
             </h1>
           </div>
           <p className="text-muted-foreground mt-2">
-            Interactive analysis of Accessory Dwelling Unit permits and
+            A comprehensive analysis of Accessory Dwelling Unit permits and
             construction trends
           </p>
         </div>
@@ -497,12 +506,13 @@ const HousingDashboard = () => {
         </div>
       </div>
 
+      {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-100 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500 flex items-center">
               <Percent className="h-4 w-4 mr-2 text-blue-500" />
-              ADU Percentage
+              ADU Share of Total Permits
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -517,7 +527,7 @@ const HousingDashboard = () => {
                       variant="outline"
                       className="bg-green-50 text-green-700 border-green-200"
                     >
-                      <TrendingUp className="h-3 w-3 mr-1" /> +
+                      <TrendingUp className="h-3 w-3 mr-1" />+
                       {overviewData.trend}%
                     </Badge>
                   ) : (
@@ -525,7 +535,7 @@ const HousingDashboard = () => {
                       variant="outline"
                       className="bg-red-50 text-red-700 border-red-200"
                     >
-                      <TrendingUp className="h-3 w-3 mr-1 rotate-180" />{" "}
+                      <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
                       {overviewData.trend}%
                     </Badge>
                   )}
@@ -542,7 +552,7 @@ const HousingDashboard = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500 flex items-center">
               <DollarSign className="h-4 w-4 mr-2 text-indigo-500" />
-              Average ADU Value
+              Average ADU Construction Value
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -582,52 +592,56 @@ const HousingDashboard = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500 flex items-center">
               <Building className="h-4 w-4 mr-2 text-purple-500" />
-              Top ADU County
+              Leading ADU County
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end justify-between">
-              <div>
-                <div className="text-3xl font-bold text-gray-900">
-                  {getTopCounty()}
-                </div>
-                <div className="flex items-center mt-1">
-                  <Badge
-                    variant="outline"
-                    className="bg-blue-50 text-blue-700 border-blue-200"
-                  >
-                    <Map className="h-3 w-3 mr-1" /> Highest ADU Concentration
-                  </Badge>
-                </div>
+            <div>
+              <div className="text-3xl font-bold text-gray-900">
+                {getTopCounty()}
+              </div>
+              <div className="flex items-center mt-1">
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-blue-700 border-blue-200"
+                >
+                  <Map className="h-3 w-3 mr-1" /> Highest ADU Volume
+                </Badge>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Tabs Section */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid grid-cols-3 w-full sm:w-[500px] mb-6">
           <TabsTrigger value="overview" className="flex gap-2">
-            <PieChartIcon className="h-4 w-4" /> Overview
+            <PieChartIcon className="h-4 w-4" />
+            Overview
           </TabsTrigger>
           <TabsTrigger value="units" className="flex gap-2">
-            <BarChart3 className="h-4 w-4" /> Units Analysis
+            <BarChart3 className="h-4 w-4" />
+            Units Analysis
           </TabsTrigger>
           <TabsTrigger value="values" className="flex gap-2">
-            <LineChartIcon className="h-4 w-4" /> Value Analysis
+            <LineChartIcon className="h-4 w-4" />
+            Value Analysis
           </TabsTrigger>
         </TabsList>
 
+        {/* Overview Tab */}
         <TabsContent value="overview">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ADU Percentage Trend by Year */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <PieChartIcon className="h-5 w-5 text-blue-500" />
-                  ADU Units Percentage Trend by year
+                  ADU Percentage Trend (Yearly)
                 </CardTitle>
                 <CardDescription>
-                  Percentage of ADUs relative to total housing permits over time
+                  Tracks ADUs as a percentage of total housing permits over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -695,14 +709,15 @@ const HousingDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Wave Chart: Permits by Classification */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Waves className="h-5 w-5 text-blue-500" />
-                  ADU job value trend by year
+                  Permits Trend by Type
                 </CardTitle>
                 <CardDescription>
-                  Wave visualization of housing permits by classification over
+                  Stacked area visualization of ADU vs. Non-ADU permits over
                   time
                 </CardDescription>
               </CardHeader>
@@ -819,16 +834,18 @@ const HousingDashboard = () => {
           </div>
         </TabsContent>
 
+        {/* Units Analysis Tab */}
         <TabsContent value="units">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ADU Share by Year */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Percent className="h-5 w-5 text-blue-500" />
-                  Unit Permitted by structure type
+                  ADU Share over Time
                 </CardTitle>
                 <CardDescription>
-                  Percentage of ADUs compared to total housing permits
+                  Year-over-year percentage comparison of ADUs to total permits
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -896,14 +913,15 @@ const HousingDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* ADU Permits by County (Horizontal Bar) */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Map className="h-5 w-5 text-blue-500" />
-                  Unit by Jurisdiction
+                  ADU Permits by County
                 </CardTitle>
                 <CardDescription>
-                  Distribution of ADU permits across counties
+                  Comparison of ADU activity in top counties
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -944,17 +962,18 @@ const HousingDashboard = () => {
           </div>
         </TabsContent>
 
+        {/* Value Analysis Tab */}
         <TabsContent value="values">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Average ADU Job Value by Year */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Waves className="h-5 w-5 text-blue-500" />
-                  Average job value by structure type
+                  Yearly Average ADU Construction Value
                 </CardTitle>
                 <CardDescription>
-                  Annual average construction value for ADU projects (in
-                  thousands)
+                  Shows the average ADU construction value (in thousands)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1012,6 +1031,7 @@ const HousingDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* ADU Job Value by County */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1019,7 +1039,8 @@ const HousingDashboard = () => {
                   ADU Job Value by County
                 </CardTitle>
                 <CardDescription>
-                  Average construction value by county (in thousands)
+                  Displays average ADU construction values by county (in
+                  thousands)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1082,14 +1103,13 @@ const HousingDashboard = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Footer */}
       <div className="mt-8 text-center text-sm text-muted-foreground border-t pt-4">
         <p>Data last updated: {new Date().toLocaleDateString()}</p>
-        <p className="mt-1">
-          <span className="inline-flex items-center">
-            <Info className="h-3 w-3 mr-1" />
-            This dashboard visualizes ADU housing trends and construction values
-            across California
-          </span>
+        <p className="mt-1 inline-flex items-center">
+          <Info className="h-3 w-3 mr-1" />
+          This dashboard provides key metrics on ADU housing trends and
+          construction values in California.
         </p>
       </div>
     </div>
